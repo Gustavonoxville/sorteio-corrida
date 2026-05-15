@@ -2,6 +2,10 @@
 server.js
 start.bat
 
+# Arquivos internos de planejamento/IA
+.claude/
+.specs/
+
 # Dependências (se usar npm futuramente)
 node_modules/
 
