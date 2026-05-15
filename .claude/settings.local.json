@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\Gustavo\\\\StudioProjects\\\\Sorteio-corrida\\\\.claude\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(Start-Sleep -Seconds 8)"
+    ]
+  }
+}

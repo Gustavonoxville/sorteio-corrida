@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sorteio Corrida</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- INPUT SCREEN -->
+  <div id="screen-input" class="screen active">
+    <div class="input-card">
+      <h1>🎱 Sorteio Corrida</h1>
+      <p class="subtitle">Digite os participantes (um por linha, mín. 2, máx. 100)</p>
+      <textarea id="participants-input" placeholder="João&#10;Maria&#10;Carlos&#10;Ana&#10;..."></textarea>
+      <div class="input-footer">
+        <span id="count-label">0 participantes</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="winner-count" title="Número de vencedores">
+            <option value="1">🏆 1 vencedor</option>
+            <option value="2">🏆 2 vencedores</option>
+            <option value="3" selected>🏆 3 vencedores</option>
+            <option value="4">🏆 4 vencedores</option>
+            <option value="5">🏆 5 vencedores</option>
+          </select>
+          <button id="btn-demo" style="background:#333;font-size:0.85rem;padding:8px 14px">Demo 100 ▾</button>
+          <button id="btn-start" disabled>Iniciar Corrida ▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RACE SCREEN -->
+  <div id="screen-race" class="screen">
+    <div id="race-layout">
+      <div id="canvas-wrapper">
+        <canvas id="race-canvas"></canvas>
+        <div id="countdown-overlay" class="hidden">
+          <span id="countdown-text"></span>
+        </div>
+      </div>
+      <div id="sidebar">
+        <h2>Classificação</h2>
+        <div id="ranking-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PODIUM SCREEN -->
+  <div id="screen-podium" class="screen">
+    <div class="podium-container">
+      <h1>🏆 Resultado Final</h1>
+      <div id="podium-places"></div>
+      <button id="btn-restart">Nova Corrida</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
