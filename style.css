@@ -119,14 +119,39 @@ select#winner-count:focus { border-color: #5566ff; }
   flex-direction: column;
   overflow: hidden;
 }
-#sidebar h2 {
-  padding: 14px 20px;
+#sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid #1e1e36;
+  flex-shrink: 0;
+}
+#sidebar-header h2 {
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 2px;
   color: #aaa;
-  border-bottom: 1px solid #1e1e36;
-  flex-shrink: 0;
+  padding: 0;
+  border: none;
+}
+#btn-broadcast {
+  background: #1a1a2e;
+  color: #556677;
+  border: 1px solid #2a2a44;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  transform: none;
+}
+#btn-broadcast:hover { background: #22223a; color: #7799bb; transform: none; }
+#btn-broadcast.active {
+  background: #0d2a1a;
+  color: #44dd88;
+  border-color: #1a6640;
+  box-shadow: 0 0 8px rgba(68,221,136,0.25);
 }
 #ranking-list {
   overflow-y: auto;

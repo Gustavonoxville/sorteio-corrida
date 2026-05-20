@@ -24,9 +24,22 @@ const PODIUM_TRAILS = [
   { positions: [], lastId: -1, retired: false, ballColor: null, scale: 0.18, alpha: 0.09, blur:  3, maxLen:  5 }, // 5º
 ];
 
-let _winnerCount = 3;
+let _winnerCount  = 3;
+let _broadcast    = false;   // Modo TV — reduz efeitos para transmissões (Teams/OBS)
+let _lastRender   = 0;
+const BCAST_FPS   = 30;
+const BCAST_SCALE = 0.80;   // resolução do canvas em modo TV (80% → menos pixels p/ encodar)
+
 export function setWinnerCount(n) {
   _winnerCount = Math.max(1, Math.min(5, n));
+}
+
+export function setBroadcastMode(on) {
+  _broadcast = on;
+  resizeCanvas();
+  // Atualiza botão na UI
+  const btn = document.getElementById('btn-broadcast');
+  if (btn) btn.classList.toggle('active', on);
 }
 
 export function setRaceStartTime(t) { _raceStart = t; }
@@ -46,16 +59,25 @@ export function stopRenderer() {
 }
 
 function resizeCanvas() {
-  const wrapper = document.getElementById('canvas-wrapper');
-  canvas.width  = wrapper.clientWidth;
-  canvas.height = wrapper.clientHeight;
-  trackScale    = (canvas.width / TRACK_W) * 0.5;  // 50% da largura do canvas
+  const wrapper  = document.getElementById('canvas-wrapper');
+  const pxRatio  = _broadcast ? BCAST_SCALE : 1.0;
+  canvas.width   = Math.round(wrapper.clientWidth  * pxRatio);
+  canvas.height  = Math.round(wrapper.clientHeight * pxRatio);
+  // Mantém o tamanho visual — CSS estica de volta
+  canvas.style.width  = wrapper.clientWidth  + 'px';
+  canvas.style.height = wrapper.clientHeight + 'px';
+  trackScale = (canvas.width / TRACK_W) * 0.5;
 }
 
 function loop(now) {
   rafId = requestAnimationFrame(loop);
-  render(now);
+  // Lógica de jogo roda sempre em full speed (física, ranking, failsafe)
   if (onFrame) onFrame(now);
+  // Em modo TV: render travado em 30fps estável — frames consistentes ficam
+  // melhores na compressão do Teams do que 55fps irregular
+  if (_broadcast && now - _lastRender < 1000 / BCAST_FPS) return;
+  _lastRender = now;
+  render(now);
 }
 
 function render(now) {
@@ -185,7 +207,7 @@ function drawStaticBodies() {
 
     ctx.save();
 
-    if (style.glow) {
+    if (style.glow && !_broadcast) {
       ctx.shadowColor = style.glow;
       ctx.shadowBlur  = 10;
     }
@@ -271,13 +293,21 @@ function drawBalls() {
   // ── Desenha trails ativos (atrás de todas as bolas) ────────────────────────
   for (const trail of activeSlots) {
     if (trail.positions.length < 3 || !trail.ballColor) continue;
-    for (let i = 0; i < trail.positions.length; i++) {
-      const p   = i / (trail.positions.length - 1); // 0=antigo → 1=recente
+    // Modo TV: rastro mais curto e sem blur para reduzir carga de renderização
+    const drawLen = _broadcast
+      ? Math.max(3, Math.ceil(trail.maxLen * 0.30))
+      : trail.positions.length;
+    const startIdx = trail.positions.length - Math.min(drawLen, trail.positions.length);
+    const span     = trail.positions.length - startIdx - 1 || 1;
+    for (let i = startIdx; i < trail.positions.length; i++) {
+      const p   = (i - startIdx) / span;
       const rad = BALL_R * (0.20 + p * 0.58) * trail.scale;
       ctx.save();
-      ctx.globalAlpha  = p * trail.alpha;
-      ctx.shadowColor  = trail.ballColor;
-      ctx.shadowBlur   = p * trail.blur;
+      ctx.globalAlpha = p * trail.alpha;
+      if (!_broadcast) {
+        ctx.shadowColor = trail.ballColor;
+        ctx.shadowBlur  = p * trail.blur;
+      }
       ctx.beginPath();
       ctx.arc(trail.positions[i].x, trail.positions[i].y, rad, 0, Math.PI * 2);
       ctx.fillStyle = trail.ballColor;
@@ -296,8 +326,8 @@ function drawBalls() {
     ctx.save();
     ctx.translate(x, y);
 
-    // Anel pulsante para top-3 — na cor da própria bolinha
-    if (trail && trail.ballColor) {
+    // Anel pulsante para top-N — desativado no modo TV (caro de renderizar)
+    if (!_broadcast && trail && trail.ballColor) {
       const pulse = 0.7 + 0.3 * Math.sin(performance.now() / 180);
       ctx.beginPath();
       ctx.arc(0, 0, BALL_R + 5 * pulse, 0, Math.PI * 2);
@@ -311,19 +341,25 @@ function drawBalls() {
       ctx.globalAlpha = 1;
     }
 
-    // Shadow
-    ctx.beginPath();
-    ctx.arc(2, 3, BALL_R, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fill();
+    // Shadow — omitido no modo TV
+    if (!_broadcast) {
+      ctx.beginPath();
+      ctx.arc(2, 3, BALL_R, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fill();
+    }
 
-    // Ball gradient
-    const grad = ctx.createRadialGradient(-3, -3, 1, 0, 0, BALL_R);
-    grad.addColorStop(0, lighten(ball.color, 32));
-    grad.addColorStop(1, ball.color);
+    // Ball — gradiente normal ou cor sólida no modo TV
     ctx.beginPath();
     ctx.arc(0, 0, BALL_R, 0, Math.PI * 2);
-    ctx.fillStyle = grad;
+    if (_broadcast) {
+      ctx.fillStyle = ball.color;
+    } else {
+      const grad = ctx.createRadialGradient(-3, -3, 1, 0, 0, BALL_R);
+      grad.addColorStop(0, lighten(ball.color, 32));
+      grad.addColorStop(1, ball.color);
+      ctx.fillStyle = grad;
+    }
     ctx.fill();
 
     // Finished ring
@@ -363,8 +399,7 @@ function drawBalls() {
         ctx.font         = `${BALL_R * 1.3}px serif`;
         ctx.textBaseline = 'bottom';
         ctx.globalAlpha  = 1;
-        ctx.shadowColor  = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur   = 4;
+        if (!_broadcast) { ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 4; }
         ctx.fillStyle    = '#FFD700';
         ctx.fillText('👑', 0, pillTop - 3);
         ctx.shadowBlur   = 0;

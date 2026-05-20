@@ -2,7 +2,7 @@ import { generateColors }  from './colors.js';
 import { initPhysics, startRunner, resetWorld, getWorld, setupBoostCollisions } from './physics.js';
 import { buildTrack, openGate, handicapState } from './track.js';
 import { createBalls, balls, tickFailsafe } from './balls.js';
-import { startRenderer, stopRenderer, resetCamera, setRaceStartTime, clearRaceTime, retireTrail, setWinnerCount } from './renderer.js';
+import { startRenderer, stopRenderer, resetCamera, setRaceStartTime, clearRaceTime, retireTrail, setWinnerCount, setBroadcastMode } from './renderer.js';
 import { checkFinishLine, renderRanking, getSortedRanking } from './ranking.js';
 import { showScreen, runCountdown, showPodium } from './ui.js';
 
@@ -142,6 +142,13 @@ btnStart.addEventListener('click', () => {
 document.getElementById('btn-restart').addEventListener('click', () => {
   showScreen('screen-input');
   state = 'INPUT';
+});
+
+// Modo TV — toggle durante a corrida
+let _broadcastOn = false;
+document.getElementById('btn-broadcast').addEventListener('click', () => {
+  _broadcastOn = !_broadcastOn;
+  setBroadcastMode(_broadcastOn);
 });
 
 function parseNames(raw) {
