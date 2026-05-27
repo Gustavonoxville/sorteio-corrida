@@ -445,11 +445,11 @@ function lighten(hsl, amount) {
 
 // ── Barra de progresso da corrida (baseada em posição da líder na pista) ────
 // 0% = gate (y≈560) | 100% = linha de chegada (FINISH_Y)
-const GATE_Y     = 560;
-const TRACK_LEN  = FINISH_Y - GATE_Y;
+const GATE_Y = 560;
 
 function drawTimeBar(now, W, H) {
   if (_raceStart === null) return;
+  const TRACK_LEN = FINISH_Y - GATE_Y; // dinâmico — depende do tamanho da corrida
 
   // Progresso = posição da bolinha mais avançada na pista
   let maxY = GATE_Y;

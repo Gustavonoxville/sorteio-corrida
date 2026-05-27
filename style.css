@@ -40,6 +40,18 @@ textarea {
 textarea:focus { border-color: #5566ff; }
 .input-footer {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.footer-selects {
+  display: flex;
+  gap: 8px;
+}
+.footer-selects select {
+  flex: 1;
+}
+.footer-actions {
+  display: flex;
   justify-content: space-between;
   align-items: center;
 }
@@ -56,6 +68,7 @@ button {
 }
 button:hover:not(:disabled) { background: #6677ff; transform: translateY(-1px); }
 button:disabled { background: #333; color: #666; cursor: not-allowed; }
+select#race-size,
 select#winner-count {
   background: #1a1a2e;
   color: #e0e0e0;
@@ -68,6 +81,7 @@ select#winner-count {
   font-family: inherit;
   transition: border-color 0.2s;
 }
+select#race-size:focus,
 select#winner-count:focus { border-color: #5566ff; }
 
 /* RACE */

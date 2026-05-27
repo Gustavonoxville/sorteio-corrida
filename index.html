@@ -15,8 +15,12 @@
       <p class="subtitle">Digite os participantes (um por linha, mín. 2, máx. 100)</p>
       <textarea id="participants-input" placeholder="João&#10;Maria&#10;Carlos&#10;Ana&#10;..."></textarea>
       <div class="input-footer">
-        <span id="count-label">0 participantes</span>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div class="footer-selects">
+          <select id="race-size" title="Tamanho da corrida">
+            <option value="small">⚡ Pequena ~30s</option>
+            <option value="medium">🏃 Média ~60s</option>
+            <option value="large" selected>🏁 Grande ~90s</option>
+          </select>
           <select id="winner-count" title="Número de vencedores">
             <option value="1">🏆 1 vencedor</option>
             <option value="2">🏆 2 vencedores</option>
@@ -24,8 +28,13 @@
             <option value="4">🏆 4 vencedores</option>
             <option value="5">🏆 5 vencedores</option>
           </select>
-          <button id="btn-demo" style="background:#333;font-size:0.85rem;padding:8px 14px">Demo 100 ▾</button>
-          <button id="btn-start" disabled>Iniciar Corrida ▶</button>
+        </div>
+        <div class="footer-actions">
+          <span id="count-label">0 participantes</span>
+          <div style="display:flex;gap:8px">
+            <button id="btn-demo" style="background:#333;font-size:0.85rem;padding:8px 14px">Demo 100 ▾</button>
+            <button id="btn-start" disabled>Iniciar Corrida ▶</button>
+          </div>
         </div>
       </div>
     </div>

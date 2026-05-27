@@ -1,6 +1,6 @@
 import { generateColors }  from './colors.js';
 import { initPhysics, startRunner, resetWorld, getWorld, setupBoostCollisions } from './physics.js';
-import { buildTrack, openGate, handicapState } from './track.js';
+import { buildTrack, openGate, handicapState, setTrackSize } from './track.js';
 import { createBalls, balls, tickFailsafe } from './balls.js';
 import { startRenderer, stopRenderer, resetCamera, setRaceStartTime, clearRaceTime, retireTrail, setWinnerCount, setBroadcastMode } from './renderer.js';
 import { checkFinishLine, renderRanking, getSortedRanking } from './ranking.js';
@@ -157,7 +157,9 @@ function parseNames(raw) {
 
 // ── Race bootstrap ─────────────────────────────────────────────────────────
 function startRace(names) {
-  // Lê configuração de vencedores do dropdown
+  // Lê configurações dos dropdowns
+  const raceSize = document.getElementById('race-size').value || 'large';
+  setTrackSize(raceSize);
   winnerCount = parseInt(document.getElementById('winner-count').value, 10) || 3;
   setWinnerCount(winnerCount);
 
@@ -232,11 +234,11 @@ function onFrame(now) {
     }
 
     // 2) Balanceamento de velocidade — contínuo enquanto a vantagem persistir
-    // Líder perde ~5% de velocidade terminal; demais ganham ~5%
-    // (frictionAir terminal ∝ gravity / frictionAir → ajuste inverso de 5%)
+    // Pista pequena tem handicap 20% mais forte (menos tempo para reagir)
+    const _hMult    = (winnerCount > 0 && document.getElementById('race-size')?.value === 'small') ? 1.20 : 1.0;
     const FR_NORMAL = 0.0100;
-    const FR_SLOW   = 0.0106; // /0.95 → ~5% mais lento
-    const FR_FAST   = 0.0095; // /1.05 → ~5% mais rápido
+    const FR_SLOW   = 0.0100 + 0.0006 * _hMult; // líder mais lento
+    const FR_FAST   = 0.0100 - 0.0005 * _hMult; // demais mais rápidos
     for (const ball of balls) {
       if (ball.finishPos !== null) continue;
       const isLeader = leader && ball.index === leader.index;

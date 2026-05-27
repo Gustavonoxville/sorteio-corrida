@@ -1,9 +1,19 @@
 const { Bodies, Body, Composite } = Matter;
 
 export const TRACK_W  = 700;
-export const TRACK_H  = 25000;
+export let   TRACK_H  = 25000;
 export const BALL_R   = 13;
-export const FINISH_Y = TRACK_H - 200;
+export let   FINISH_Y = TRACK_H - 200;
+
+let _trackSize = 'large';
+
+// Chame antes de buildTrack para configurar o tamanho da corrida
+export function setTrackSize(size) {
+  _trackSize = size;
+  if (size === 'small')  { TRACK_H = 8600;  FINISH_Y = 8350; }
+  if (size === 'medium') { TRACK_H = 16650; FINISH_Y = 16400; }
+  if (size === 'large')  { TRACK_H = 25000; FINISH_Y = 24800; }
+}
 
 const WALL_T  = 80   // paredes grossas — evita tunelamento com 100 bolinhas;
 const MIN_GAP = BALL_R * 4;
@@ -41,24 +51,29 @@ export function buildTrack(world) {
   }));
 
   // ── Container + gate ──────────────────────────────────────────────────
-  const cOpts = { isStatic: true, friction: 0.2, restitution: 0.4, label: 'container' };
-  all.push(
-    tilt(130, 280, 320, 18,  0.5, cOpts),   // rampas maiores → boca mais larga
-    tilt(570, 280, 320, 18, -0.5, cOpts),
-  );
-  // Paredes verticais laterais — impedem bolinhas de escapar pelo topo das rampas
-  const sideOpts = { isStatic: true, friction: 0.3, restitution: 0.1, label: 'container' };
-  all.push(Bodies.rectangle(18,           200, 18, 440, sideOpts));  // parede esq
-  all.push(Bodies.rectangle(TRACK_W - 18, 200, 18, 440, sideOpts));  // parede dir
+  // Paredes laterais altas: topo em y=−420 → acima de qualquer spawn (max y=−226)
+  // → nenhuma bolinha consegue pousar em cima delas.
+  // Rampas centrais com fricção baixa → bolinhas escorregam para o centro.
+  const cOpts    = { isStatic: true, friction: 0.08, restitution: 0.40, label: 'container' };
+  const sideOpts = { isStatic: true, friction: 0.05, restitution: 0.10, label: 'container' };
+
+  // Paredes laterais — height=860 → span y=−420 a y=440 (topo acima do spawn)
+  all.push(Bodies.rectangle(18,           10, 18, 860, sideOpts));  // esq
+  all.push(Bodies.rectangle(TRACK_W - 18, 10, 18, 860, sideOpts));  // dir
+
+  // Rampas do funil — boca larga, fricção baixa
+  all.push(tilt(130, 280, 320, 18,  0.50, cOpts));
+  all.push(tilt(570, 280, 320, 18, -0.50, cOpts));
+
   // Gate extra-largo e espesso — garante que nenhuma bolinha escape antes do GO!
   const gate = Bodies.rectangle(TRACK_W / 2, 590, TRACK_W + WALL_T * 4, 36, {
     isStatic: true, friction: 0, restitution: 0.05, label: 'gate',
   });
   all.push(gate);
-  // Tampas laterais — selam os cantos entre gate e paredes
+  // Tampas laterais — selam os cantos entre gate e paredes externas
   const capOpts = { isStatic: true, friction: 0, restitution: 0.05, label: 'gate' };
-  all.push(Bodies.rectangle(-WALL_T,         583, WALL_T * 2, 50, capOpts));  // canto esq
-  all.push(Bodies.rectangle(TRACK_W + WALL_T, 583, WALL_T * 2, 50, capOpts));  // canto dir
+  all.push(Bodies.rectangle(-WALL_T,          583, WALL_T * 2, 50, capOpts));
+  all.push(Bodies.rectangle(TRACK_W + WALL_T, 583, WALL_T * 2, 50, capOpts));
 
   // ^ INICIAL — dois braços fixos, SEM animação, apenas separa as bolinhas
   {
@@ -73,18 +88,32 @@ export function buildTrack(world) {
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  //  TRACK ZONES — 25 000px | espaçamento mínimo ~380px entre zonas
-  //  ^  = Caret    (V invertido, desloca lateralmente)
-  //  V  = V-Clock  (dois braços girantes, prende bolinhas)
-  //  BT = Boost    (setinhas ▼ que aceleram a bolinha)
+  //  TRACK ZONES
+  //  Pequena (~30s) : zonas compartilhadas → final funnel ~8100
+  //  Média   (~60s) : + zonas médias       → final funnel ~16100
+  //  Grande  (~90s) : + zonas grandes      → final funnel ~24550
   // ══════════════════════════════════════════════════════════════════════
 
-  // Z1 — abertura suave (poucos pegs, pequenos — não filtrar muito no inicio)
+  // ── ZONAS COMPARTILHADAS (todas as corridas) ──────────────────────────
+
+  // Z1 — abertura suave
   all.push(...pegs(820, 2, 4, 110, 10, 14));                   // ends ~940
 
-  // Z2 — rampas + pegs suaves (início aberto, bolas ficam juntas)
+  // [SMALL] gap y=940–1250 — bumpers extras antes das rampas Z2
+  if (_trackSize === 'small') {
+    all.push(...bumpers(1020, 2, 20));
+    all.push(...pegs(1120, 2, 5, 75, 10, 10));
+  }
+
+  // Z2 — rampas + pegs suaves
   all.push(...ramps(1250, 3, 220, 0.32));                      // ends ~1910
-  all.push(...pegs(2000, 2, 4, 110, 10, 10));                  // sparse pegs
+  all.push(...pegs(2000, 2, 4, 110, 10, 10));
+
+  // [SMALL] gap y=2110–2450 — bumpers antes dos Paddles A
+  if (_trackSize === 'small') {
+    all.push(...bumpers(2240, 2, 22));
+    all.push(Bodies.circle(TRACK_W / 2, 2340, 24, { isStatic:true, friction:0.02, restitution:0.88, label:'bumper' }));
+  }
 
   // PADDLES A
   addPaddles(all, animated, 2450, 3, 155, 1.0, 2.1);          // ends ~3140
@@ -95,8 +124,20 @@ export function buildTrack(world) {
   // bumpers A
   all.push(...bumpers(3530, 3, 24));                           // ends ~3730
 
+  // [SMALL] gap y=3730–4050 — bumpers entre Bumpers A e pegs Z3
+  if (_trackSize === 'small') {
+    all.push(...pegs(3820, 2, 5, 80, 11, 10));
+    all.push(...bumpers(3940, 2, 19));
+  }
+
   // Z3 — pegs
   all.push(...pegs(4050, 4, 6, 70, 12, 10));                  // ends ~4260
+
+  // [SMALL] gap y=4260–4560 — pegs entre Z3 e ^ B
+  if (_trackSize === 'small') {
+    all.push(...bumpers(4370, 2, 18));
+    all.push(...pegs(4450, 2, 4, 75, 10, 8));
+  }
 
   // ^ B
   addCaret(all, animated, TRACK_W / 2, 4560, 175, 165, 0.9);
@@ -105,7 +146,7 @@ export function buildTrack(world) {
   addVClock(all, animated, TRACK_W / 2, 4900, 210, 1.0);
 
   // NARROW A
-  all.push(...narrowRamps(5280, 330));                         // ends ~5430 — mais largo no início
+  all.push(...narrowRamps(5280, 330));                         // ends ~5430
 
   // ^ C
   addCaret(all, animated, TRACK_W / 2, 5680, 165, 150, 1.3);
@@ -113,150 +154,169 @@ export function buildTrack(world) {
   // PADDLES B
   addPaddles(all, animated, 6000, 3, 150, 0.9, 2.0);          // ends ~6690
 
-  // CLOCK A — grande
+  // bumpers + pegs — preenche gap entre Paddles B e Clock A
+  all.push(...pegs(6780, 3, 5, 75, 11, 12));                   // 3 fileiras, 5 colunas
+  all.push(...bumpers(6800, 2, 20));                            // 2 fileiras de bumpers
+  all.push(Bodies.circle(TRACK_W * 0.50, 6870, 22, { isStatic:true, friction:0.02, restitution:0.88, label:'bumper' }));
+  all.push(Bodies.circle(TRACK_W * 0.28, 6940, 18, { isStatic:true, friction:0.02, restitution:0.85, label:'bumper' }));
+  all.push(Bodies.circle(TRACK_W * 0.72, 6940, 18, { isStatic:true, friction:0.02, restitution:0.85, label:'bumper' }));
+
+  // CLOCK A
   addClock(all, animated, TRACK_W / 2, 7050, 290, 1.15);
 
   // Z4 — pegs
   all.push(...pegs(7480, 4, 6, 70, 12, 9));                   // ends ~7690
 
+  // [SMALL] gap y=7690–7980 — bumpers antes do ^ D (sprint final)
+  if (_trackSize === 'small') {
+    all.push(...bumpers(7780, 2, 21));
+    all.push(Bodies.circle(TRACK_W * 0.35, 7870, 18, { isStatic:true, friction:0.02, restitution:0.85, label:'bumper' }));
+    all.push(Bodies.circle(TRACK_W * 0.65, 7870, 18, { isStatic:true, friction:0.02, restitution:0.85, label:'bumper' }));
+  }
+
   // ^ D
   addCaret(all, animated, TRACK_W / 2, 7980, 180, 160, 1.0);
 
-  // BIFURCAÇÃO
-  split(all, animated, 8350, 1500);                           // ends ~9850
+  // ── ZONAS MÉDIAS + GRANDES (não pequena) ──────────────────────────────
+  if (_trackSize !== 'small') {
 
-  // V-CLOCK B
-  addVClock(all, animated, TRACK_W / 2, 10050, 220, -1.0);
+    // BIFURCAÇÃO
+    split(all, animated, 8350, 1500);                         // ends ~9850
 
-  // bumpers B
-  all.push(...bumpers(10400, 3, 23));                          // ends ~10600
+    // V-CLOCK B
+    addVClock(all, animated, TRACK_W / 2, 10050, 220, -1.0);
 
-  // ^ E
-  addCaret(all, animated, TRACK_W / 2, 10900, 172, 162, 1.2);
+    // bumpers B
+    all.push(...bumpers(10400, 3, 23));                        // ends ~10600
 
-  // PADDLES C
-  addPaddles(all, animated, 11220, 3, 150, 0.85, 1.8);        // ends ~11910
+    // ^ E
+    addCaret(all, animated, TRACK_W / 2, 10900, 172, 162, 1.2);
 
-  // ── X — ROTATIVOS (substituem o loop) ───────────────────────────────
-  addRotatingX(all, animated, TRACK_W * 0.28, 12250, 1.50,  0.0);
-  addRotatingX(all, animated, TRACK_W * 0.72, 12500, -1.30, 1.5);
-  // X terceiro — movido para depois do BOOST A, sem conflito com paddles
+    // PADDLES C
+    addPaddles(all, animated, 11220, 3, 150, 0.85, 1.8);      // ends ~11910
 
-  // NARROW B
-  all.push(...narrowRamps(12900, 260));                        // ends ~13060
+    // X rotativos
+    addRotatingX(all, animated, TRACK_W * 0.28, 12250, 1.50,  0.0);
+    addRotatingX(all, animated, TRACK_W * 0.72, 12500, -1.30, 1.5);
 
-  // CLOCK B
-  addClock(all, animated, TRACK_W / 2, 13380, 275, -1.4);
+    // NARROW B
+    all.push(...narrowRamps(12900, 260));                      // ends ~13060
 
-  // ^ J — preenche o gap antes do village (era vazio ~965px)
-  addCaret(all, animated, TRACK_W / 2, 13850, 165, 145, 1.0);
+    // CLOCK B
+    addClock(all, animated, TRACK_W / 2, 13380, 275, -1.4);
 
-  // bumpers E — aquece antes do village
-  all.push(...bumpers(14180, 2, 20));                          // ends ~14380
+    // ^ J
+    addCaret(all, animated, TRACK_W / 2, 13850, 165, 145, 1.0);
 
-  // Z4b — pegs antes do village
-  all.push(...pegs(14420, 2, 5, 80, 10, 8));                  // ends ~14500
+    // bumpers E
+    all.push(...bumpers(14180, 2, 20));                        // ends ~14380
 
-  // ══════════════════════════════════════════════════════════════════════
-  //  ALPHABET VILLAGE — letras Z X Y T M girando continuamente
-  //  s=55 → raio máx ≈ 62px; espaçamento ≈ 224px → sem sobreposição
-  //  speed 2.2–3.2 rad/s (≈ 2–3× mais rápido que os relógios)
-  // ══════════════════════════════════════════════════════════════════════
-  const _S = 55;
-  // Fileira 1
-  _addRotatingLetter(all, animated, TRACK_W * 0.18, 14680, _letterZ(_S), 2.4,  0.0);
-  _addRotatingLetter(all, animated, TRACK_W * 0.50, 14680, _letterT(_S), 2.8,  1.2);
-  _addRotatingLetter(all, animated, TRACK_W * 0.82, 14680, _letterX(_S), 2.2,  2.5);
-  // Fileira 2 (intercalada)
-  _addRotatingLetter(all, animated, TRACK_W * 0.33, 15000, _letterY(_S), 3.0,  0.8);
-  _addRotatingLetter(all, animated, TRACK_W * 0.67, 15000, _letterM(_S), 2.6,  3.0);
-  // Fileira 3
-  _addRotatingLetter(all, animated, TRACK_W * 0.18, 15320, _letterX(_S), 2.9,  1.5);
-  _addRotatingLetter(all, animated, TRACK_W * 0.50, 15320, _letterZ(_S), 2.3,  0.3);
-  _addRotatingLetter(all, animated, TRACK_W * 0.82, 15320, _letterT(_S), 3.2,  2.0);
+    // Z4b — pegs antes do village
+    all.push(...pegs(14420, 2, 5, 80, 10, 8));                // ends ~14500
 
-  // ^ F — após o village (y=15560, antes dos pegs em 15580 há espaço suficiente)
-  addCaret(all, animated, TRACK_W / 2, 15560, 175, 155, 1.1);
+    // ALPHABET VILLAGE
+    const _S = 55;
+    _addRotatingLetter(all, animated, TRACK_W * 0.18, 14680, _letterZ(_S), 2.4,  0.0);
+    _addRotatingLetter(all, animated, TRACK_W * 0.50, 14680, _letterT(_S), 2.8,  1.2);
+    _addRotatingLetter(all, animated, TRACK_W * 0.82, 14680, _letterX(_S), 2.2,  2.5);
+    _addRotatingLetter(all, animated, TRACK_W * 0.33, 15000, _letterY(_S), 3.0,  0.8);
+    _addRotatingLetter(all, animated, TRACK_W * 0.67, 15000, _letterM(_S), 2.6,  3.0);
+    _addRotatingLetter(all, animated, TRACK_W * 0.18, 15320, _letterX(_S), 2.9,  1.5);
+    _addRotatingLetter(all, animated, TRACK_W * 0.50, 15320, _letterZ(_S), 2.3,  0.3);
+    _addRotatingLetter(all, animated, TRACK_W * 0.82, 15320, _letterT(_S), 3.2,  2.0);
 
-  // Z5 — pegs
-  all.push(...pegs(15720, 4, 6, 70, 12, 9));                  // ends ~16000
+    // ^ F — após o village
+    addCaret(all, animated, TRACK_W / 2, 15560, 175, 155, 1.1);
 
-  // V-CLOCK C
-  addVClock(all, animated, TRACK_W / 2, 16080, 225, 0.95);
+    // Z5 — pegs
+    all.push(...pegs(15720, 4, 6, 70, 12, 9));                // ends ~16000
 
-  // bumpers C + central
-  all.push(...bumpers(16480, 4, 22));                          // ends ~16780
-  all.push(Bodies.circle(TRACK_W / 2, 16630, 28, { isStatic:true, friction:0.02, restitution:0.90, label:'bumper' }));
+  } // fim zonas médias+grandes
 
-  // DIAGONAL A
-  addDiagonalBars(all, animated, 16980, 2, 1.3);              // ends ~17260
+  // ── ZONAS EXCLUSIVAS DA GRANDE ────────────────────────────────────────
+  if (_trackSize === 'large') {
+    const _S = 55;
 
-  // ^ G — espaço adequado após diagonal
-  addCaret(all, animated, TRACK_W / 2, 17550, 175, 160, 1.0);
+    // V-CLOCK C
+    addVClock(all, animated, TRACK_W / 2, 16080, 225, 0.95);
 
-  // PADDLES D
-  addPaddles(all, animated, 17820, 3, 145, 1.1, 1.95);        // ends ~18510
+    // bumpers C + central
+    all.push(...bumpers(16480, 4, 22));                        // ends ~16780
+    all.push(Bodies.circle(TRACK_W / 2, 16630, 28, { isStatic:true, friction:0.02, restitution:0.90, label:'bumper' }));
 
-  // ── X rotativo — entre paddles e estreitamento ───────────────────────
-  addRotatingX(all, animated, TRACK_W / 2, 18600, 1.8, 0.8);
+    // DIAGONAL A
+    addDiagonalBars(all, animated, 16980, 2, 1.3);            // ends ~17260
 
-  // ── BT — BOOST A: pista livre antes (narrow removida — cobria o boost) ──
-  addBoostGate(all, TRACK_W * 0.25, 18900);
-  addBoostGate(all, TRACK_W * 0.75, 18900);
-  addBoostGate(all, TRACK_W * 0.50, 19060);
-  //                  ↑ pista livre até y=19900 ↑
+    // ^ G
+    addCaret(all, animated, TRACK_W / 2, 17550, 175, 160, 1.0);
 
-  // CLOCK C
-  addClock(all, animated, TRACK_W / 2, 19900, 285, 0.95);
+    // PADDLES D
+    addPaddles(all, animated, 17820, 3, 145, 1.1, 1.95);      // ends ~18510
 
-  // Z6 — pegs
-  all.push(...pegs(20380, 4, 6, 70, 12, 9));                  // ends ~20660
+    // X rotativo
+    addRotatingX(all, animated, TRACK_W / 2, 18600, 1.8, 0.8);
 
-  // V-CLOCK D
-  addVClock(all, animated, TRACK_W / 2, 20950, 215, -1.05);
+    // BOOST A
+    addBoostGate(all, TRACK_W * 0.25, 18900);
+    addBoostGate(all, TRACK_W * 0.75, 18900);
+    addBoostGate(all, TRACK_W * 0.50, 19060);
 
-  // ^ H — antes do sprint final (longe dos X's em y=22140)
-  addCaret(all, animated, TRACK_W / 2, 20750, 170, 162, 1.2);
+    // CLOCK C
+    addClock(all, animated, TRACK_W / 2, 19900, 285, 0.95);
 
-  // ALPHABET LATE — letras Y e M substituem copos rotativos
-  _addRotatingLetter(all, animated, TRACK_W * 0.25, 21200, _letterY(_S), 2.8, 0.4);
-  _addRotatingLetter(all, animated, TRACK_W * 0.75, 21200, _letterM(_S), 2.5, 2.1);
+    // Z6 — pegs
+    all.push(...pegs(20380, 4, 6, 70, 12, 9));                // ends ~20660
 
-  // DIAGONAL B
-  addDiagonalBars(all, animated, 21740, 2, 1.5);              // ends ~22020
+    // ^ H
+    addCaret(all, animated, TRACK_W / 2, 20750, 170, 162, 1.2);
 
-  // ── X rotativos extras — sprint final ───────────────────────────────
-  addRotatingX(all, animated, TRACK_W * 0.28, 22140, 2.0,  0.0);
-  addRotatingX(all, animated, TRACK_W * 0.72, 22140, -2.0, 1.3);
+    // V-CLOCK D
+    addVClock(all, animated, TRACK_W / 2, 20950, 215, -1.05);
 
-  // bumpers D
-  all.push(...bumpers(22380, 3, 23));                          // ends ~22580
+    // ALPHABET LATE
+    _addRotatingLetter(all, animated, TRACK_W * 0.25, 21200, _letterY(_S), 2.8, 0.4);
+    _addRotatingLetter(all, animated, TRACK_W * 0.75, 21200, _letterM(_S), 2.5, 2.1);
 
-  // PADDLES E
-  all.push(...pegs(22600, 2, 5, 100, 11, 14));                // pegs soltos — menos denso que paddles
-  addPaddles(all, animated, 22800, 2, 148, 1.15, 1.9);        // ends ~23030
+    // DIAGONAL B
+    addDiagonalBars(all, animated, 21740, 2, 1.5);            // ends ~22020
 
-  // ── BT — BOOST B: ~370px livres antes, ~500px livres depois ──────────
-  addBoostGate(all, TRACK_W * 0.20, 23200);
-  addBoostGate(all, TRACK_W * 0.80, 23200);
-  addBoostGate(all, TRACK_W * 0.50, 23350);
-  //                  ↑ pista livre até y=23850 (~500px de runway) ↑
+    // X rotativos extras — sprint final
+    addRotatingX(all, animated, TRACK_W * 0.28, 22140, 2.0,  0.0);
+    addRotatingX(all, animated, TRACK_W * 0.72, 22140, -2.0, 1.3);
 
-  // ^ I — bem depois do boost, aproveita velocidade
-  addCaret(all, animated, TRACK_W / 2, 23700, 178, 150, 0.9);
+    // bumpers D
+    all.push(...bumpers(22380, 3, 23));                        // ends ~22580
 
-  // Z7 — pegs finais
-  all.push(...pegs(23980, 2, 5, 80, 11, 10));                 // ends ~24060
+    // PADDLES E
+    all.push(...pegs(22600, 2, 5, 100, 11, 14));
+    addPaddles(all, animated, 22800, 2, 148, 1.15, 1.9);      // ends ~23030
 
-  // CLOCK D — portão final
-  addClock(all, animated, TRACK_W / 2, 24280, 240, -1.2);
+    // BOOST B
+    addBoostGate(all, TRACK_W * 0.20, 23200);
+    addBoostGate(all, TRACK_W * 0.80, 23200);
+    addBoostGate(all, TRACK_W * 0.50, 23350);
 
-  // Final funnel
-  all.push(...finalFunnel(24550));
+    // ^ I
+    addCaret(all, animated, TRACK_W / 2, 23700, 178, 150, 0.9);
 
-  // ── Wall guards — pegs every 160px along both walls (entire track) ───
-  // Prevents balls from sliding along walls through empty zones unimpeded
-  all.push(...wallGuards(620, FINISH_Y - 200, 160));
+    // Z7 — pegs finais
+    all.push(...pegs(23980, 2, 5, 80, 11, 10));               // ends ~24060
+
+    // CLOCK D — portão final
+    addClock(all, animated, TRACK_W / 2, 24280, 240, -1.2);
+
+    // Final funnel grande
+    all.push(...finalFunnel(24550));
+
+  } // fim zonas grandes
+
+  // Final funnels para corridas menores
+  if (_trackSize === 'small')  all.push(...finalFunnel(8100));
+  if (_trackSize === 'medium') all.push(...finalFunnel(16100));
+
+  // ── Wall guards — pegs every 160px along both walls ───────────────────
+  // Começa em y=2200 (após pegs Z1+Z2) — evita segurar bolinhas logo após a largada
+  all.push(...wallGuards(2200, FINISH_Y - 200, 160));
 
   // ── Floor ─────────────────────────────────────────────────────────────
   all.push(Bodies.rectangle(TRACK_W / 2, TRACK_H + WALL_T / 2, TRACK_W + WALL_T * 2, WALL_T, {
