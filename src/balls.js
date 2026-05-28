@@ -12,9 +12,10 @@ export let balls = [];
 export function createBalls(names, colors, world) {
   balls = [];
   names.forEach((name, i) => {
-    // Drop randomly inside the container zone (x: 120–580, above the gate)
-    const x = BALL_R * 3 + Math.random() * (TRACK_W - BALL_R * 6);
-    const y = -BALL_R * 2 - Math.random() * 200;
+    // Spawn centralizado — faixa central (20%–80% da largura) acima do funil
+    const margin = TRACK_W * 0.20;
+    const x = margin + Math.random() * (TRACK_W - margin * 2);
+    const y = -BALL_R * 2 - Math.random() * 120;
     const body = Bodies.circle(x, y, BALL_R, {
       restitution: 0.65,
       friction: 0.04,
